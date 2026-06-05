@@ -1,6 +1,5 @@
 # Java
 backend/target/
-backend/.mvn/
 
 # VS Code
 .vscode/
