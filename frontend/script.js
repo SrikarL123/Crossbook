@@ -260,7 +260,7 @@ function backToWelcome() {
 async function signupUser(name, password) {
 
     const response = await fetch(
-        "http://localhost:8080/auth/signup",
+        "https://crossbook.onrender.com/auth/signup",
         {
             method: "POST",
             headers: {
@@ -305,7 +305,7 @@ async function signupUser(name, password) {
 async function loginUser(name, password) {
 
     const response = await fetch(
-        "http://localhost:8080/auth/login",
+        "https://crossbook.onrender.com/auth/login",
         {
             method: "POST",
             headers: {
@@ -435,11 +435,11 @@ async function loadUserPreferences() {
     try {
 
         const favoritesResponse = await fetch(
-            `http://localhost:8080/favorites/${appState.currentUserID}`
+            `https://crossbook.onrender.com/favorites/${appState.currentUserID}`
         );
 
         const dislikesResponse = await fetch(
-            `http://localhost:8080/dislikes/${appState.currentUserID}`
+            `https://crossbook.onrender.com/dislikes/${appState.currentUserID}`
         );
 
         const favoritesData = await favoritesResponse.json();
@@ -746,7 +746,7 @@ async function toggleFavorite(bookId) {
         appState.favorites.includes(bookId);
 
     const response = await fetch(
-        "http://localhost:8080/favorite",
+        "https://crossbook.onrender.com/favorite",
         {
             method: isFavorited ? "DELETE" : "POST",
             headers: {
@@ -793,7 +793,7 @@ async function toggleDislike(bookId) {
         appState.dislikes.includes(bookId);
 
     const response = await fetch(
-        "http://localhost:8080/dislike",
+        "https://crossbook.onrender.com/dislike",
         {
             method: isDisliked ? "DELETE" : "POST",
             headers: {
