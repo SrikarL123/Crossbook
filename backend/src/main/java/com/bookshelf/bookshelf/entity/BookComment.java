@@ -17,6 +17,9 @@ public class BookComment {
     @Column(nullable = false)
     private Long userId;
 
+    @Column
+    private Long parentCommentId;
+
     @Column(nullable = false, length = 2000)
     private String content;
 
@@ -44,6 +47,14 @@ public class BookComment {
 
     public void setUserId(Long userId) {
         this.userId = userId;
+    }
+
+    public Long getParentCommentId() {
+        return parentCommentId;
+    }
+
+    public void setParentCommentId(Long parentCommentId) {
+        this.parentCommentId = parentCommentId;
     }
 
     public String getContent() {

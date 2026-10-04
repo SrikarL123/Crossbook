@@ -6,6 +6,7 @@ public class CommentResponse {
 
     private Long id;
     private Long userId;
+    private Long parentCommentId;
     private String username;
     private String content;
     private LocalDateTime createdAt;
@@ -18,6 +19,7 @@ public class CommentResponse {
     public CommentResponse(
             Long id,
             Long userId,
+            Long parentCommentId,
             String username,
             String content,
             LocalDateTime createdAt,
@@ -28,6 +30,7 @@ public class CommentResponse {
 
         this.id = id;
         this.userId = userId;
+        this.parentCommentId = parentCommentId;
         this.username = username;
         this.content = content;
         this.createdAt = createdAt;
@@ -43,6 +46,10 @@ public class CommentResponse {
 
     public Long getUserId() {
         return userId;
+    }
+
+    public Long getParentCommentId() {
+        return parentCommentId;
     }
 
     public String getUsername() {

@@ -194,6 +194,63 @@ public class BookCommentController {
         return ResponseEntity.noContent().build();
     }
 
+
+
+    // =========================================================
+// REPLY TO COMMENT
+// =========================================================
+
+@PostMapping("/{commentId}/reply")
+public ResponseEntity<?> replyToComment(
+        @PathVariable Long commentId,
+        @RequestHeader(value = "Authorization", required = false)
+        String authorization,
+        @RequestBody CommentRequest request) {
+
+    Optional<User> author = getUser(authorization);
+
+    if (author.isEmpty()) {
+        return ResponseEntity
+                .status(HttpStatus.UNAUTHORIZED)
+                .body("Please log in to reply");
+    }
+
+    Optional<BookComment> parent =
+            commentRepository.findById(commentId);
+
+    if (parent.isEmpty()) {
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body("Comment not found");
+    }
+
+    String content = normalizedContent(request);
+
+    if (content == null) {
+        return ResponseEntity
+                .badRequest()
+                .body("Reply must contain 1 to 2000 characters");
+    }
+
+    LocalDateTime now = LocalDateTime.now();
+
+    BookComment reply = new BookComment();
+
+    reply.setBookId(parent.get().getBookId());
+    reply.setUserId(author.get().getUserId());
+    reply.setParentCommentId(commentId);
+    reply.setContent(content);
+    reply.setCreatedAt(now);
+    reply.setUpdatedAt(now);
+
+    BookComment savedReply =
+            commentRepository.save(reply);
+
+    return ResponseEntity
+            .status(HttpStatus.CREATED)
+            .body(toResponse(savedReply, author));
+}
+
     // =========================================================
     // LIKE COMMENT
     // =========================================================
@@ -413,15 +470,16 @@ public class BookCommentController {
         }
 
         return new CommentResponse(
-                comment.getId(),
-                comment.getUserId(),
-                username,
-                comment.getContent(),
-                comment.getCreatedAt(),
-                comment.getUpdatedAt(),
-                likes,
-                dislikes,
-                userReaction
-        );
+        comment.getId(),
+        comment.getUserId(),
+        comment.getParentCommentId(),
+        username,
+        comment.getContent(),
+        comment.getCreatedAt(),
+        comment.getUpdatedAt(),
+        likes,
+        dislikes,
+        userReaction
+);
     }
 }

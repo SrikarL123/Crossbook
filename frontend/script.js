@@ -292,7 +292,7 @@ async function signupUser(name, password) {
 async function loginUser(name, password) {
     try {
         const response = await fetch(
-            "http://localhost:8080/auth/login",
+            "https://crossbook.onrender.com/auth/login",
             {
                 method: "POST",
                 headers: {
@@ -1130,20 +1130,56 @@ function commentHeaders() {
 
 commentForm.addEventListener('submit', async event => {
     event.preventDefault();
-    if (!currentModalBook || !appState.token) return;
+
+    if (!currentModalBook || !appState.token) {
+        showToast('Please log in first.');
+        return;
+    }
+
     const bookId = currentModalBook.id;
-    commentFeedback.textContent = '';
+    const content = commentInput.value.trim();
+
+    if (!content) {
+        commentFeedback.textContent = 'Comment cannot be empty.';
+        return;
+    }
+
     try {
-        const response = await fetch(`http://localhost:8080/comments/${bookId}`, {
-            method: 'POST',
-            headers: commentHeaders(),
-            body: JSON.stringify({ content: commentInput.value })
-        });
-        if (!response.ok) throw new Error(await response.text());
+        const response = await fetch(
+            `https://crossbook.onrender.com/comments/${bookId}`,
+            {
+                method: 'POST',
+                headers: commentHeaders(),
+                body: JSON.stringify({
+                    content: content
+                })
+            }
+        );
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(
+                errorText || 'Could not post comment.'
+            );
+        }
+
         commentInput.value = '';
-        if (currentModalBook && currentModalBook.id === bookId) await loadComments(bookId);
+        commentFeedback.textContent = '';
+
+        await loadComments(bookId);
+
+        showToast('Comment posted successfully.');
+
     } catch (error) {
-        commentFeedback.textContent = error.message || 'Could not post comment.';
+
+        console.error(
+            'Comment post error:',
+            error
+        );
+
+        commentFeedback.textContent =
+            error.message ||
+            'Could not post comment.';
     }
 });
 
@@ -1151,7 +1187,7 @@ async function editComment(comment) {
     const content = window.prompt('Edit your comment:', comment.content);
     if (content === null || !content.trim()) return;
     try {
-        const response = await fetch(`http://localhost:8080/comments/${comment.id}`, {
+        const response = await fetch(`https://crossbook.onrender.com/comments/${comment.id}`, {
             method: 'PUT',
             headers: commentHeaders(),
             body: JSON.stringify({ content })
