@@ -1,5 +1,6 @@
 package com.bookshelf.bookshelf.controller;
 
+import org.springframework.transaction.annotation.Transactional;
 import com.bookshelf.bookshelf.dto.CommentRequest;
 import com.bookshelf.bookshelf.dto.CommentResponse;
 import com.bookshelf.bookshelf.entity.BookComment;
@@ -152,47 +153,74 @@ public class BookCommentController {
     }
 
     // =========================================================
-    // DELETE COMMENT
-    // =========================================================
+// DELETE COMMENT / REPLY
+// =========================================================
 
-    @DeleteMapping("/{commentId}")
-    public ResponseEntity<?> deleteComment(
-            @PathVariable Long commentId,
-            @RequestHeader(value = "Authorization", required = false)
-            String authorization) {
+        @DeleteMapping("/{commentId}")
+        @Transactional
+        public ResponseEntity<?> deleteComment(
+                @PathVariable Long commentId,
+                @RequestHeader(value = "Authorization", required = false)
+                String authorization) {
 
         Optional<User> author = getUser(authorization);
 
         if (author.isEmpty()) {
-            return ResponseEntity
-                    .status(HttpStatus.UNAUTHORIZED)
-                    .body("Please log in to delete comments");
+                return ResponseEntity
+                        .status(HttpStatus.UNAUTHORIZED)
+                        .body("Please log in to delete comments");
         }
 
         Optional<BookComment> existing =
                 commentRepository.findById(commentId);
 
         if (existing.isEmpty()) {
-            return ResponseEntity.notFound().build();
+                return ResponseEntity.notFound().build();
         }
 
         BookComment comment = existing.get();
 
+        // Only the owner can delete the comment/reply
         if (!comment.getUserId().equals(author.get().getUserId())) {
-            return ResponseEntity
-                    .status(HttpStatus.FORBIDDEN)
-                    .body("You can only delete your own comments");
+                return ResponseEntity
+                        .status(HttpStatus.FORBIDDEN)
+                        .body("You can only delete your own comments");
         }
 
-        // Delete reactions belonging to this comment first
+        // =========================================================
+        // DELETE REPLIES FIRST
+        // =========================================================
+
+        List<BookComment> replies =
+                commentRepository.findByParentCommentIdOrderByCreatedAtAsc(commentId);
+
+        for (BookComment reply : replies) {
+
+                // Delete reactions belonging to this reply
+                reactionRepository
+                        .findByCommentId(reply.getId())
+                        .forEach(reactionRepository::delete);
+
+                // Delete the reply
+                commentRepository.delete(reply);
+        }
+
+        // =========================================================
+        // DELETE REACTIONS OF MAIN COMMENT
+        // =========================================================
+
         reactionRepository
                 .findByCommentId(commentId)
                 .forEach(reactionRepository::delete);
 
+        // =========================================================
+        // DELETE MAIN COMMENT
+        // =========================================================
+
         commentRepository.delete(comment);
 
         return ResponseEntity.noContent().build();
-    }
+        }
 
 
 
