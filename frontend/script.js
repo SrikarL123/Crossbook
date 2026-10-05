@@ -817,10 +817,15 @@ async function loadComments(bookId) {
 }
 
 function renderComments(comments) {
-    commentsCount.textContent = comments.length;
+    // Count only top-level comments
+    const topLevelComments = comments.filter(
+        comment => comment.parentCommentId == null
+    );
+
+    commentsCount.textContent = topLevelComments.length;
     commentsList.replaceChildren();
 
-    if (comments.length === 0) {
+    if (topLevelComments.length === 0) {
         const emptyMessage = document.createElement('p');
         emptyMessage.className = 'comments-empty';
         emptyMessage.textContent = 'No comments yet. Start the conversation.';
@@ -828,34 +833,180 @@ function renderComments(comments) {
         return;
     }
 
-    // Only top-level comments are displayed directly.
-    // Replies are displayed underneath their parent comment.
-    const topLevelComments = comments.filter(
-        comment => !comment.parentCommentId
-    );
+    // =========================================================
+    // BUILD COMMENT TREE
+    // =========================================================
 
-    topLevelComments.forEach(comment => {
+    const childrenMap = new Map();
 
-        const item = createCommentElement(comment);
+    comments.forEach(comment => {
+        const parentId = comment.parentCommentId;
 
-        // Find replies belonging to this comment
-        const replies = comments.filter(
-            reply => Number(reply.parentCommentId) === Number(comment.id)
-        );
-
-        if (replies.length > 0) {
-            const repliesContainer = document.createElement('div');
-            repliesContainer.className = 'comment-replies';
-
-            replies.forEach(reply => {
-                const replyElement = createCommentElement(reply, true);
-                repliesContainer.appendChild(replyElement);
-            });
-
-            item.appendChild(repliesContainer);
+        if (!childrenMap.has(parentId)) {
+            childrenMap.set(parentId, []);
         }
 
+        childrenMap.get(parentId).push(comment);
+    });
+
+    // =========================================================
+    // RENDER COMMENT RECURSIVELY
+    // =========================================================
+
+    function renderComment(comment, level = 0) {
+
+        const item = document.createElement('article');
+        item.className = 'comment-item';
+
+        // Indent replies
+        if (level > 0) {
+            item.classList.add('comment-reply');
+            item.style.marginLeft = `${Math.min(level, 4) * 32}px`;
+        }
+
+        // =====================================================
+        // HEADER
+        // =====================================================
+
+        const header = document.createElement('div');
+        header.className = 'comment-header';
+
+        const author = document.createElement('strong');
+        author.className = 'comment-author';
+        author.textContent = comment.username;
+
+        const timestamp = document.createElement('time');
+        timestamp.className = 'comment-time';
+        timestamp.dateTime = comment.updatedAt;
+        timestamp.textContent =
+            new Date(comment.updatedAt).toLocaleString();
+
+        header.append(author, timestamp);
+
+        // =====================================================
+        // CONTENT
+        // =====================================================
+
+        const content = document.createElement('p');
+        content.className = 'comment-content';
+        content.textContent = comment.content;
+
+        item.append(header, content);
+
+        // =====================================================
+        // REACTION BUTTONS
+        // =====================================================
+
+        const reactionActions = document.createElement('div');
+        reactionActions.className = 'comment-reactions';
+
+        // LIKE
+        const likeButton = document.createElement('button');
+        likeButton.type = 'button';
+        likeButton.className = 'comment-reaction-btn';
+
+        if (comment.userReaction === 'LIKE') {
+            likeButton.classList.add('active');
+        }
+
+        likeButton.innerHTML = `
+            <span>👍</span>
+            <span>${comment.likes || 0}</span>
+        `;
+
+        likeButton.addEventListener('click', () => {
+            reactToComment(comment, 'LIKE');
+        });
+
+        // DISLIKE
+        const dislikeButton = document.createElement('button');
+        dislikeButton.type = 'button';
+        dislikeButton.className = 'comment-reaction-btn';
+
+        if (comment.userReaction === 'DISLIKE') {
+            dislikeButton.classList.add('active');
+        }
+
+        dislikeButton.innerHTML = `
+            <span>👎</span>
+            <span>${comment.dislikes || 0}</span>
+        `;
+
+        dislikeButton.addEventListener('click', () => {
+            reactToComment(comment, 'DISLIKE');
+        });
+
+        reactionActions.append(likeButton, dislikeButton);
+        item.appendChild(reactionActions);
+
+        // =====================================================
+        // REPLY BUTTON
+        // =====================================================
+
+        const replyButton = document.createElement('button');
+        replyButton.type = 'button';
+        replyButton.className = 'comment-reply-btn';
+        replyButton.textContent = 'Reply';
+
+        replyButton.addEventListener('click', () => {
+            showReplyBox(item, comment);
+        });
+
+        item.appendChild(replyButton);
+
+        // =====================================================
+        // EDIT / DELETE
+        // =====================================================
+
+        if (Number(comment.userId) === Number(appState.currentUserID)) {
+
+            const actions = document.createElement('div');
+            actions.className = 'comment-actions';
+
+            const editButton = document.createElement('button');
+            editButton.type = 'button';
+            editButton.textContent = 'Edit';
+
+            editButton.addEventListener('click', () => {
+                editComment(comment);
+            });
+
+            const deleteButton = document.createElement('button');
+            deleteButton.type = 'button';
+            deleteButton.textContent = 'Delete';
+
+            deleteButton.addEventListener('click', () => {
+                deleteComment(comment);
+            });
+
+            actions.append(editButton, deleteButton);
+
+            item.appendChild(actions);
+        }
+
+        // =====================================================
+        // ADD THIS COMMENT
+        // =====================================================
+
         commentsList.appendChild(item);
+
+        // =====================================================
+        // RENDER REPLIES UNDER THIS COMMENT
+        // =====================================================
+
+        const replies = childrenMap.get(comment.id) || [];
+
+        replies.forEach(reply => {
+            renderComment(reply, level + 1);
+        });
+    }
+
+    // =========================================================
+    // RENDER ONLY TOP-LEVEL COMMENTS
+    // =========================================================
+
+    topLevelComments.forEach(comment => {
+        renderComment(comment, 0);
     });
 }
 
