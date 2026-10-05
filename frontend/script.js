@@ -828,92 +828,140 @@ function renderComments(comments) {
         return;
     }
 
-    comments.forEach(comment => {
+    // Only top-level comments are displayed directly.
+    // Replies are displayed underneath their parent comment.
+    const topLevelComments = comments.filter(
+        comment => !comment.parentCommentId
+    );
 
-        const item = document.createElement('article');
-        item.className = 'comment-item';
+    topLevelComments.forEach(comment => {
 
-        // =========================
-        // HEADER
-        // =========================
+        const item = createCommentElement(comment);
 
-        const header = document.createElement('div');
-        header.className = 'comment-header';
+        // Find replies belonging to this comment
+        const replies = comments.filter(
+            reply => Number(reply.parentCommentId) === Number(comment.id)
+        );
 
-        const author = document.createElement('strong');
-        author.className = 'comment-author';
-        author.textContent = comment.username;
+        if (replies.length > 0) {
+            const repliesContainer = document.createElement('div');
+            repliesContainer.className = 'comment-replies';
 
-        const timestamp = document.createElement('time');
-        timestamp.className = 'comment-time';
-        timestamp.dateTime = comment.updatedAt;
-        timestamp.textContent =
-            new Date(comment.updatedAt).toLocaleString();
+            replies.forEach(reply => {
+                const replyElement = createCommentElement(reply, true);
+                repliesContainer.appendChild(replyElement);
+            });
 
-        header.append(author, timestamp);
-
-        // =========================
-        // CONTENT
-        // =========================
-
-        const content = document.createElement('p');
-        content.className = 'comment-content';
-        content.textContent = comment.content;
-
-        item.append(header, content);
-
-        // =========================
-        // REACTION BUTTONS
-        // =========================
-
-        const reactionActions = document.createElement('div');
-        reactionActions.className = 'comment-reactions';
-
-        // LIKE
-        const likeButton = document.createElement('button');
-        likeButton.type = 'button';
-        likeButton.className = 'comment-reaction-btn';
-
-        if (comment.userReaction === 'LIKE') {
-            likeButton.classList.add('active');
+            item.appendChild(repliesContainer);
         }
 
-        likeButton.innerHTML = `
-            <span>👍</span>
-            <span>${comment.likes || 0}</span>
-        `;
+        commentsList.appendChild(item);
+    });
+}
 
-        likeButton.addEventListener('click', () => {
-            reactToComment(comment, 'LIKE');
-        });
 
-        // DISLIKE
-        const dislikeButton = document.createElement('button');
-        dislikeButton.type = 'button';
-        dislikeButton.className = 'comment-reaction-btn';
+/*
+ * Creates a single comment/reply element.
+ *
+ * isReply = true means this is displayed inside
+ * the parent comment's reply section.
+ */
+function createCommentElement(comment, isReply = false) {
 
-        if (comment.userReaction === 'DISLIKE') {
-            dislikeButton.classList.add('active');
-        }
+    const item = document.createElement('article');
 
-        dislikeButton.innerHTML = `
-            <span>👎</span>
-            <span>${comment.dislikes || 0}</span>
-        `;
+    item.className = isReply
+        ? 'comment-item comment-reply'
+        : 'comment-item';
 
-        dislikeButton.addEventListener('click', () => {
-            reactToComment(comment, 'DISLIKE');
-        });
+    // =========================
+    // HEADER
+    // =========================
 
-        reactionActions.append(likeButton, dislikeButton);
+    const header = document.createElement('div');
+    header.className = 'comment-header';
 
-        item.appendChild(reactionActions);
+    const author = document.createElement('strong');
+    author.className = 'comment-author';
+    author.textContent = comment.username;
 
-        // =========================
-        // REPLY BUTTON
-        // =========================
+    const timestamp = document.createElement('time');
+    timestamp.className = 'comment-time';
+    timestamp.dateTime = comment.updatedAt;
+    timestamp.textContent =
+        new Date(comment.updatedAt).toLocaleString();
+
+    header.append(author, timestamp);
+
+    // =========================
+    // CONTENT
+    // =========================
+
+    const content = document.createElement('p');
+    content.className = 'comment-content';
+    content.textContent = comment.content;
+
+    item.append(header, content);
+
+    // =========================
+    // REACTION BUTTONS
+    // =========================
+
+    const reactionActions = document.createElement('div');
+    reactionActions.className = 'comment-reactions';
+
+    // LIKE
+    const likeButton = document.createElement('button');
+    likeButton.type = 'button';
+    likeButton.className = 'comment-reaction-btn';
+
+    if (comment.userReaction === 'LIKE') {
+        likeButton.classList.add('active');
+    }
+
+    likeButton.innerHTML = `
+        <span>👍</span>
+        <span>${comment.likes || 0}</span>
+    `;
+
+    likeButton.addEventListener('click', () => {
+        reactToComment(comment, 'LIKE');
+    });
+
+    // DISLIKE
+    const dislikeButton = document.createElement('button');
+    dislikeButton.type = 'button';
+    dislikeButton.className = 'comment-reaction-btn';
+
+    if (comment.userReaction === 'DISLIKE') {
+        dislikeButton.classList.add('active');
+    }
+
+    dislikeButton.innerHTML = `
+        <span>👎</span>
+        <span>${comment.dislikes || 0}</span>
+    `;
+
+    dislikeButton.addEventListener('click', () => {
+        reactToComment(comment, 'DISLIKE');
+    });
+
+    reactionActions.append(likeButton, dislikeButton);
+
+    item.appendChild(reactionActions);
+
+    // =========================
+    // REPLY BUTTON
+    // =========================
+
+    /*
+     * We allow replying to top-level comments.
+     * Replies themselves don't get another reply button.
+     */
+    if (!isReply) {
 
         const replyButton = document.createElement('button');
+
         replyButton.type = 'button';
         replyButton.className = 'comment-reply-btn';
         replyButton.textContent = 'Reply';
@@ -923,39 +971,39 @@ function renderComments(comments) {
         });
 
         item.appendChild(replyButton);
+    }
 
-        // =========================
-        // EDIT / DELETE
-        // =========================
+    // =========================
+    // EDIT / DELETE
+    // =========================
 
-        if (Number(comment.userId) === Number(appState.currentUserID)) {
+    if (Number(comment.userId) === Number(appState.currentUserID)) {
 
-            const actions = document.createElement('div');
-            actions.className = 'comment-actions';
+        const actions = document.createElement('div');
+        actions.className = 'comment-actions';
 
-            const editButton = document.createElement('button');
-            editButton.type = 'button';
-            editButton.textContent = 'Edit';
+        const editButton = document.createElement('button');
+        editButton.type = 'button';
+        editButton.textContent = 'Edit';
 
-            editButton.addEventListener('click', () => {
-                editComment(comment);
-            });
+        editButton.addEventListener('click', () => {
+            editComment(comment);
+        });
 
-            const deleteButton = document.createElement('button');
-            deleteButton.type = 'button';
-            deleteButton.textContent = 'Delete';
+        const deleteButton = document.createElement('button');
+        deleteButton.type = 'button';
+        deleteButton.textContent = 'Delete';
 
-            deleteButton.addEventListener('click', () => {
-                deleteComment(comment);
-            });
+        deleteButton.addEventListener('click', () => {
+            deleteComment(comment);
+        });
 
-            actions.append(editButton, deleteButton);
+        actions.append(editButton, deleteButton);
 
-            item.appendChild(actions);
-        }
+        item.appendChild(actions);
+    }
 
-        commentsList.appendChild(item);
-    });
+    return item;
 }
 
 
