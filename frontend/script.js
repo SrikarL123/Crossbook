@@ -1202,7 +1202,7 @@ async function editComment(comment) {
 async function deleteComment(comment) {
     if (!window.confirm('Delete your comment?')) return;
     try {
-        const response = await fetch(`http://localhost:8080/comments/${comment.id}`, {
+        const response = await fetch(`https://crossbook.onrender.com/comments/${comment.id}`, {
             method: 'DELETE',
             headers: commentHeaders()
         });
