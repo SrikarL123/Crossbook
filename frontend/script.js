@@ -828,15 +828,13 @@ function renderComments(comments) {
     if (topLevelComments.length === 0) {
         const emptyMessage = document.createElement('p');
         emptyMessage.className = 'comments-empty';
-        emptyMessage.textContent = 'No comments yet. Start the conversation.';
+        emptyMessage.textContent =
+            'No comments yet. Start the conversation.';
         commentsList.appendChild(emptyMessage);
         return;
     }
 
-    // =========================================================
-    // BUILD COMMENT TREE
-    // =========================================================
-
+    // Build parent -> replies map
     const childrenMap = new Map();
 
     comments.forEach(comment => {
@@ -849,25 +847,22 @@ function renderComments(comments) {
         childrenMap.get(parentId).push(comment);
     });
 
-    // =========================================================
-    // RENDER COMMENT RECURSIVELY
-    // =========================================================
-
-    function renderComment(comment, level = 0) {
-
+    function renderComment(
+        comment,
+        level = 0,
+        container = commentsList
+    ) {
         const item = document.createElement('article');
         item.className = 'comment-item';
 
         // Indent replies
         if (level > 0) {
             item.classList.add('comment-reply');
-            item.style.marginLeft = `${Math.min(level, 4) * 32}px`;
+            item.style.marginLeft =
+                `${Math.min(level, 4) * 32}px`;
         }
 
-        // =====================================================
-        // HEADER
-        // =====================================================
-
+        // Header
         const header = document.createElement('div');
         header.className = 'comment-header';
 
@@ -883,24 +878,17 @@ function renderComments(comments) {
 
         header.append(author, timestamp);
 
-        // =====================================================
-        // CONTENT
-        // =====================================================
-
+        // Content
         const content = document.createElement('p');
         content.className = 'comment-content';
         content.textContent = comment.content;
 
         item.append(header, content);
 
-        // =====================================================
-        // REACTION BUTTONS
-        // =====================================================
-
+        // Reactions
         const reactionActions = document.createElement('div');
         reactionActions.className = 'comment-reactions';
 
-        // LIKE
         const likeButton = document.createElement('button');
         likeButton.type = 'button';
         likeButton.className = 'comment-reaction-btn';
@@ -918,7 +906,6 @@ function renderComments(comments) {
             reactToComment(comment, 'LIKE');
         });
 
-        // DISLIKE
         const dislikeButton = document.createElement('button');
         dislikeButton.type = 'button';
         dislikeButton.className = 'comment-reaction-btn';
@@ -936,13 +923,14 @@ function renderComments(comments) {
             reactToComment(comment, 'DISLIKE');
         });
 
-        reactionActions.append(likeButton, dislikeButton);
+        reactionActions.append(
+            likeButton,
+            dislikeButton
+        );
+
         item.appendChild(reactionActions);
 
-        // =====================================================
-        // REPLY BUTTON
-        // =====================================================
-
+        // Reply button
         const replyButton = document.createElement('button');
         replyButton.type = 'button';
         replyButton.className = 'comment-reply-btn';
@@ -954,12 +942,11 @@ function renderComments(comments) {
 
         item.appendChild(replyButton);
 
-        // =====================================================
-        // EDIT / DELETE
-        // =====================================================
-
-        if (Number(comment.userId) === Number(appState.currentUserID)) {
-
+        // Edit / Delete
+        if (
+            Number(comment.userId) ===
+            Number(appState.currentUserID)
+        ) {
             const actions = document.createElement('div');
             actions.className = 'comment-actions';
 
@@ -979,34 +966,79 @@ function renderComments(comments) {
                 deleteComment(comment);
             });
 
-            actions.append(editButton, deleteButton);
+            actions.append(
+                editButton,
+                deleteButton
+            );
 
             item.appendChild(actions);
         }
 
-        // =====================================================
-        // ADD THIS COMMENT
-        // =====================================================
+        // Add comment to its container
+        container.appendChild(item);
 
-        commentsList.appendChild(item);
+        // Get replies
+        const replies =
+            childrenMap.get(comment.id) || [];
 
-        // =====================================================
-        // RENDER REPLIES UNDER THIS COMMENT
-        // =====================================================
+        // Show / Hide replies
+        if (replies.length > 0) {
+            const replyToggle =
+                document.createElement('button');
 
-        const replies = childrenMap.get(comment.id) || [];
+            replyToggle.type = 'button';
+            replyToggle.className =
+                'comment-replies-toggle';
 
-        replies.forEach(reply => {
-            renderComment(reply, level + 1);
-        });
+            const replyLabel =
+                replies.length === 1
+                    ? '1 Reply'
+                    : `${replies.length} Replies`;
+
+            const repliesContainer =
+                document.createElement('div');
+
+            repliesContainer.className =
+                'comment-replies-container';
+
+            // Hidden initially
+            repliesContainer.style.display = 'none';
+
+            replyToggle.textContent =
+                `▸ ${replyLabel}`;
+
+            replyToggle.addEventListener('click', () => {
+                const isHidden =
+                    repliesContainer.style.display === 'none';
+
+                if (isHidden) {
+                    repliesContainer.style.display = 'block';
+                    replyToggle.textContent =
+                        `▾ ${replyLabel}`;
+                } else {
+                    repliesContainer.style.display = 'none';
+                    replyToggle.textContent =
+                        `▸ ${replyLabel}`;
+                }
+            });
+
+            // Render replies INSIDE this container
+            replies.forEach(reply => {
+                renderComment(
+                    reply,
+                    level + 1,
+                    repliesContainer
+                );
+            });
+
+            item.appendChild(replyToggle);
+            item.appendChild(repliesContainer);
+        }
     }
 
-    // =========================================================
-    // RENDER ONLY TOP-LEVEL COMMENTS
-    // =========================================================
-
+    // Render top-level comments
     topLevelComments.forEach(comment => {
-        renderComment(comment, 0);
+        renderComment(comment);
     });
 }
 
@@ -1772,3 +1804,17 @@ function animateStars() {
 }
 
 animateStars();
+
+function togglePassword(inputId, button) {
+    const passwordInput = document.getElementById(inputId);
+
+    if (passwordInput.type === "password") {
+        passwordInput.type = "text";
+        button.textContent = "🙈";
+        button.setAttribute("aria-label", "Hide password");
+    } else {
+        passwordInput.type = "password";
+        button.textContent = "👁️";
+        button.setAttribute("aria-label", "Show password");
+    }
+}
